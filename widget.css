@@ -24,8 +24,9 @@ body,
 
 #wheel-wrap {
   position: absolute;
-  right: 50px;
-  bottom: 50px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: min(42vw, 520px);
   aspect-ratio: 1 / 1;
   display: grid;
