@@ -1,0 +1,23 @@
+{
+  "spinCommand": {
+    "type": "text",
+    "label": "Spin command",
+    "value": "!spin"
+  },
+  "spinDurationMs": {
+    "type": "number",
+    "label": "Spin duration (ms)",
+    "value": 8000,
+    "min": 1000,
+    "max": 20000,
+    "step": 100
+  },
+  "resultHoldMs": {
+    "type": "number",
+    "label": "Result display time (ms)",
+    "value": 7000,
+    "min": 1000,
+    "max": 30000,
+    "step": 100
+  }
+}
