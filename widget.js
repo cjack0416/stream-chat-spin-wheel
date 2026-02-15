@@ -70,6 +70,8 @@ let spinDurationMs = 8000;
 let resultHoldMs = 7000;
 let winnerApiUrl = "";
 let spinEnabledApiUrl = "";
+let spinAttemptApiUrl = "";
+let spinFollowApiUrl = "";
 let winnerApiToken = "";
 let chatReplyApiUrl = "";
 const minFullTurns = 8;
@@ -78,7 +80,6 @@ const maxFullTurns = 12;
 let rotation = 0;
 let isSpinning = false;
 let resultTimer = null;
-const userSpinRecords = new Map();
 
 function normalizeAngle(rad) {
   const r = rad % TAU;
@@ -133,65 +134,6 @@ function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
 
-function normalizeUserKey(userName) {
-  return String(userName || "").trim().toLowerCase();
-}
-
-function getUserRecord(userName) {
-  const key = normalizeUserKey(userName);
-  if (!key) return null;
-
-  if (!userSpinRecords.has(key)) {
-    userSpinRecords.set(key, {
-      spinsUsed: 0,
-      bonusUnlocked: false,
-      bonusUsed: false
-    });
-  }
-
-  return userSpinRecords.get(key);
-}
-
-function evaluateSpinEligibility(userName) {
-  const record = getUserRecord(userName);
-  if (!record) {
-    return { allowed: false, reason: "missing-user" };
-  }
-
-  if (record.spinsUsed === 0) {
-    return { allowed: true, reason: "first-spin" };
-  }
-
-  if (record.spinsUsed === 1 && record.bonusUnlocked && !record.bonusUsed) {
-    return { allowed: true, reason: "follow-bonus" };
-  }
-
-  if (record.spinsUsed >= 2 || record.bonusUsed) {
-    return { allowed: false, reason: "limit-reached" };
-  }
-
-  return { allowed: false, reason: "follow-required" };
-}
-
-function registerSpinUsage(userName) {
-  const record = getUserRecord(userName);
-  if (!record) return;
-
-  if (record.spinsUsed === 1 && record.bonusUnlocked && !record.bonusUsed) {
-    record.bonusUsed = true;
-  }
-  record.spinsUsed += 1;
-}
-
-function registerFollowEvent(userName) {
-  const record = getUserRecord(userName);
-  if (!record) return;
-
-  if (record.spinsUsed >= 1 && !record.bonusUsed) {
-    record.bonusUnlocked = true;
-  }
-}
-
 function showWinner(hero, userName) {
   const by = userName ? ` (@${userName})` : "";
   winnerEl.textContent = `${hero}${by}`;
@@ -231,18 +173,21 @@ async function reportWinner(hero, userName) {
   }
 }
 
-async function isSpinFeatureEnabled() {
-  if (!spinEnabledApiUrl) return true;
-
-  const headers = {};
+function getAuthHeaders() {
+  const headers = { "Content-Type": "application/json" };
   if (winnerApiToken) {
     headers["x-api-token"] = winnerApiToken;
   }
+  return headers;
+}
+
+async function isSpinFeatureEnabled() {
+  if (!spinEnabledApiUrl) return true;
 
   try {
     const response = await fetch(spinEnabledApiUrl, {
       method: "GET",
-      headers
+      headers: winnerApiToken ? { "x-api-token": winnerApiToken } : {}
     });
     if (!response.ok) return true;
 
@@ -250,6 +195,44 @@ async function isSpinFeatureEnabled() {
     return json.spinEnabled !== false;
   } catch (_error) {
     return true;
+  }
+}
+
+async function attemptSpinForUser(userName) {
+  if (!spinAttemptApiUrl) {
+    return { allowed: true, reason: "no-attempt-api-configured" };
+  }
+
+  try {
+    const response = await fetch(spinAttemptApiUrl, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ userName })
+    });
+    if (!response.ok) {
+      return { allowed: false, reason: "attempt-api-error" };
+    }
+    const json = await response.json();
+    return {
+      allowed: json.allowed === true,
+      reason: String(json.reason || "")
+    };
+  } catch (_error) {
+    return { allowed: false, reason: "attempt-api-unreachable" };
+  }
+}
+
+async function registerFollowForUser(userName) {
+  if (!spinFollowApiUrl || !userName) return;
+
+  try {
+    await fetch(spinFollowApiUrl, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ userName })
+    });
+  } catch (_error) {
+    // Ignore follow registration failures.
   }
 }
 
@@ -267,15 +250,10 @@ async function sendChatReply(hero, userName, messageId, customMessage) {
     payload.replyTo = messageId;
   }
 
-  const headers = { "Content-Type": "application/json" };
-  if (winnerApiToken) {
-    headers["x-api-token"] = winnerApiToken;
-  }
-
   try {
     const response = await fetch(chatReplyApiUrl, {
       method: "POST",
-      headers,
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
     if (!response.ok) {
@@ -321,7 +299,6 @@ function spinForUser(userName, messageId) {
     drawWheel();
     isSpinning = false;
     const hero = HEROES[targetIndex];
-    registerSpinUsage(userName);
     showWinner(hero, userName);
     reportWinner(hero, userName);
     sendChatReply(hero, userName, messageId);
@@ -395,6 +372,20 @@ window.addEventListener("onWidgetLoad", (obj) => {
   }
 
   if (
+    typeof fieldData.spinAttemptApiUrl === "string" &&
+    fieldData.spinAttemptApiUrl.trim()
+  ) {
+    spinAttemptApiUrl = fieldData.spinAttemptApiUrl.trim();
+  }
+
+  if (
+    typeof fieldData.spinFollowApiUrl === "string" &&
+    fieldData.spinFollowApiUrl.trim()
+  ) {
+    spinFollowApiUrl = fieldData.spinFollowApiUrl.trim();
+  }
+
+  if (
     typeof fieldData.winnerApiToken === "string" &&
     fieldData.winnerApiToken.trim()
   ) {
@@ -419,7 +410,7 @@ window.addEventListener("onEventReceived", (obj) => {
     if (listener === "follower-latest") {
       const followedUser = parseFollowerEvent(detail);
       if (followedUser) {
-        registerFollowEvent(followedUser);
+        registerFollowForUser(followedUser);
       }
       return;
     }
@@ -438,11 +429,16 @@ window.addEventListener("onEventReceived", (obj) => {
       return;
     }
 
-    const eligibility = evaluateSpinEligibility(parsed.userName);
-    if (!eligibility.allowed) {
+    const attempt = await attemptSpinForUser(parsed.userName);
+    if (!attempt.allowed) {
       const blockedMessage =
-        eligibility.reason === "follow-required"
+        attempt.reason === "follow-required"
           ? `@${parsed.userName} You already used your one spin. Follow the channel to unlock one extra spin this stream.`
+          : attempt.reason === "feature-disabled"
+          ? `@${parsed.userName} The spin feature is not active right now`
+          : attempt.reason === "attempt-api-unreachable" ||
+            attempt.reason === "attempt-api-error"
+          ? `@${parsed.userName} Spin service is temporarily unavailable. Try again in a moment.`
           : `@${parsed.userName} You already used your allowed spins for this stream.`;
       sendChatReply(null, parsed.userName, parsed.messageId, blockedMessage);
       return;

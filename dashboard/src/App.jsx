@@ -14,6 +14,9 @@ export default function App() {
   const [status, setStatus] = useState("connecting");
   const [spinEnabled, setSpinEnabled] = useState(true);
   const [toggleStatus, setToggleStatus] = useState("idle");
+  const [streamSessionId, setStreamSessionId] = useState("-");
+  const [streamSessionStartedAt, setStreamSessionStartedAt] = useState(null);
+  const [resetStatus, setResetStatus] = useState("idle");
 
   const winnerStreamUrl = useMemo(() => {
     const base = apiBase.replace(/\/$/, "");
@@ -30,6 +33,16 @@ export default function App() {
     return `${base}/api/spin-enabled`;
   }, []);
 
+  const streamStateUrl = useMemo(() => {
+    const base = apiBase.replace(/\/$/, "");
+    return `${base}/api/stream/state`;
+  }, []);
+
+  const streamResetUrl = useMemo(() => {
+    const base = apiBase.replace(/\/$/, "");
+    return `${base}/api/stream/reset`;
+  }, []);
+
   const authHeaders = useMemo(() => {
     if (!apiToken) return {};
     return { "x-api-token": apiToken };
@@ -40,17 +53,25 @@ export default function App() {
 
     async function loadInitialWinner() {
       try {
-        const [winnerResponse, spinResponse] = await Promise.all([
+        const [winnerResponse, spinResponse, streamStateResponse] = await Promise.all([
           fetch(winnerApiUrl),
-          fetch(spinEnabledApiUrl)
+          fetch(spinEnabledApiUrl),
+          fetch(streamStateUrl)
         ]);
         const winnerJson = await winnerResponse.json();
         const spinJson = await spinResponse.json();
+        const streamStateJson = await streamStateResponse.json();
         if (mounted) {
           if (winnerJson.winner) {
             setWinner(winnerJson.winner);
           }
           setSpinEnabled(spinJson.spinEnabled !== false);
+          if (streamStateJson.streamSessionId) {
+            setStreamSessionId(streamStateJson.streamSessionId);
+          }
+          if (streamStateJson.streamSessionStartedAt) {
+            setStreamSessionStartedAt(streamStateJson.streamSessionStartedAt);
+          }
         }
       } catch (_error) {
         if (mounted) setStatus("disconnected");
@@ -82,7 +103,7 @@ export default function App() {
       mounted = false;
       source.close();
     };
-  }, [spinEnabledApiUrl, winnerApiUrl, winnerStreamUrl]);
+  }, [spinEnabledApiUrl, streamStateUrl, winnerApiUrl, winnerStreamUrl]);
 
   async function toggleSpinEnabled() {
     const nextValue = !spinEnabled;
@@ -104,6 +125,28 @@ export default function App() {
       setToggleStatus("idle");
     } catch (_error) {
       setToggleStatus("error");
+    }
+  }
+
+  async function resetStreamSession() {
+    setResetStatus("saving");
+    try {
+      const response = await fetch(streamResetUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`Failed with status ${response.status}`);
+      }
+      const json = await response.json();
+      setStreamSessionId(json.streamSessionId || "-");
+      setStreamSessionStartedAt(json.streamSessionStartedAt || null);
+      setResetStatus("idle");
+    } catch (_error) {
+      setResetStatus("error");
     }
   }
 
@@ -132,6 +175,25 @@ export default function App() {
           </button>
           {toggleStatus === "error" ? (
             <div className="toggle-card__error">Failed to update. Check server auth/token.</div>
+          ) : null}
+        </div>
+
+        <div className="session-card">
+          <div className="session-card__label">Stream Session</div>
+          <div className="session-card__meta">ID: {streamSessionId}</div>
+          <div className="session-card__meta">
+            Started: {formatTime(streamSessionStartedAt)}
+          </div>
+          <button
+            className="session-card__button"
+            type="button"
+            onClick={resetStreamSession}
+            disabled={resetStatus === "saving"}
+          >
+            {resetStatus === "saving" ? "Resetting..." : "Reset Stream Limits"}
+          </button>
+          {resetStatus === "error" ? (
+            <div className="toggle-card__error">Failed to reset stream session.</div>
           ) : null}
         </div>
 

@@ -30,6 +30,16 @@
     "label": "Spin Enabled API URL",
     "value": "http://localhost:3001/api/spin-enabled"
   },
+  "spinAttemptApiUrl": {
+    "type": "text",
+    "label": "Spin Attempt API URL",
+    "value": "http://localhost:3001/api/spin-attempt"
+  },
+  "spinFollowApiUrl": {
+    "type": "text",
+    "label": "Spin Follow API URL",
+    "value": "http://localhost:3001/api/spin-follow"
+  },
   "winnerApiToken": {
     "type": "text",
     "label": "Winner API Token (optional)",

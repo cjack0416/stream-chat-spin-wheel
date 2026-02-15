@@ -20,6 +20,8 @@ Important widget fields:
 - `spinCommand`: command to trigger spin (default `!spin`)
 - `winnerApiUrl`: where winner events are sent (default `http://localhost:3001/api/winner`)
 - `spinEnabledApiUrl`: where widget checks whether spinning is enabled (default `http://localhost:3001/api/spin-enabled`)
+- `spinAttemptApiUrl`: where widget asks server if a user can spend a spin (default `http://localhost:3001/api/spin-attempt`)
+- `spinFollowApiUrl`: where widget reports follow events for bonus-spin unlock (default `http://localhost:3001/api/spin-follow`)
 - `winnerApiToken`: optional token if your API is protected
 - `chatReplyApiUrl`: where chat reply events are sent (default `http://localhost:3001/api/chat-reply`)
 
@@ -38,9 +40,14 @@ Available endpoints:
 - `GET /health`
 - `GET /api/winner`
 - `GET /api/spin-enabled`
+- `GET /api/spin-eligibility?userName=...`
+- `GET /api/stream/state`
 - `GET /api/winner/message`
 - `POST /api/winner` with JSON body `{ "hero": "...", "userName": "..." }`
 - `POST /api/spin-enabled` with JSON body `{ "spinEnabled": true|false }`
+- `POST /api/spin-attempt` with JSON body `{ "userName": "..." }`
+- `POST /api/spin-follow` with JSON body `{ "userName": "..." }`
+- `POST /api/stream/reset` resets per-stream user limits
 - `POST /api/chat-reply` with JSON body `{ "hero": "...", "userName": "...", "replyTo": "..." }`
 - `GET /api/winner/stream` (Server-Sent Events)
 
@@ -70,6 +77,8 @@ To change API base URL, set `VITE_WINNER_API_BASE` (see `dashboard/.env.example`
 ## Notes
 
 - Winner storage is in-memory (resets when server restarts).
+- Per-user spin limits are now service-side per stream session (not widget-local).
+- Use dashboard `Reset Stream Limits` to start a new stream session without restarting.
 - While a spin is running, extra `!spin` messages are ignored.
 - Hero list includes `INVISIBLE WOMAN` (corrected typo from `NVISIBLE WOMAN`).
 
