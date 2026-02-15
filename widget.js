@@ -78,6 +78,7 @@ const maxFullTurns = 12;
 let rotation = 0;
 let isSpinning = false;
 let resultTimer = null;
+const userSpinRecords = new Map();
 
 function normalizeAngle(rad) {
   const r = rad % TAU;
@@ -130,6 +131,65 @@ function drawWheel() {
 
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
+}
+
+function normalizeUserKey(userName) {
+  return String(userName || "").trim().toLowerCase();
+}
+
+function getUserRecord(userName) {
+  const key = normalizeUserKey(userName);
+  if (!key) return null;
+
+  if (!userSpinRecords.has(key)) {
+    userSpinRecords.set(key, {
+      spinsUsed: 0,
+      bonusUnlocked: false,
+      bonusUsed: false
+    });
+  }
+
+  return userSpinRecords.get(key);
+}
+
+function evaluateSpinEligibility(userName) {
+  const record = getUserRecord(userName);
+  if (!record) {
+    return { allowed: false, reason: "missing-user" };
+  }
+
+  if (record.spinsUsed === 0) {
+    return { allowed: true, reason: "first-spin" };
+  }
+
+  if (record.spinsUsed === 1 && record.bonusUnlocked && !record.bonusUsed) {
+    return { allowed: true, reason: "follow-bonus" };
+  }
+
+  if (record.spinsUsed >= 2 || record.bonusUsed) {
+    return { allowed: false, reason: "limit-reached" };
+  }
+
+  return { allowed: false, reason: "follow-required" };
+}
+
+function registerSpinUsage(userName) {
+  const record = getUserRecord(userName);
+  if (!record) return;
+
+  if (record.spinsUsed === 1 && record.bonusUnlocked && !record.bonusUsed) {
+    record.bonusUsed = true;
+  }
+  record.spinsUsed += 1;
+}
+
+function registerFollowEvent(userName) {
+  const record = getUserRecord(userName);
+  if (!record) return;
+
+  if (record.spinsUsed >= 1 && !record.bonusUsed) {
+    record.bonusUnlocked = true;
+  }
 }
 
 function showWinner(hero, userName) {
@@ -261,6 +321,7 @@ function spinForUser(userName, messageId) {
     drawWheel();
     isSpinning = false;
     const hero = HEROES[targetIndex];
+    registerSpinUsage(userName);
     showWinner(hero, userName);
     reportWinner(hero, userName);
     sendChatReply(hero, userName, messageId);
@@ -285,6 +346,21 @@ function parseMessageEvent(detail) {
     userName: String(userName).trim(),
     messageId: String(messageId).trim()
   };
+}
+
+function parseFollowerEvent(detail) {
+  if (!detail) return "";
+  const event = detail.event || detail;
+  const data = event.data || event;
+  const userName =
+    data.name ||
+    data.username ||
+    data.displayName ||
+    data.nick ||
+    data.user ||
+    "";
+
+  return String(userName).trim();
 }
 
 function isSpinCommand(text) {
@@ -340,6 +416,14 @@ window.addEventListener("onEventReceived", (obj) => {
     const detail = obj && obj.detail ? obj.detail : {};
     const listener = detail.listener || "";
 
+    if (listener === "follower-latest") {
+      const followedUser = parseFollowerEvent(detail);
+      if (followedUser) {
+        registerFollowEvent(followedUser);
+      }
+      return;
+    }
+
     if (listener !== "message") return;
 
     const parsed = parseMessageEvent(detail);
@@ -351,6 +435,16 @@ window.addEventListener("onEventReceived", (obj) => {
         ? `@${parsed.userName} The spin feature is not active right now`
         : "The spin feature is not active right now";
       sendChatReply(null, parsed.userName, parsed.messageId, inactiveMessage);
+      return;
+    }
+
+    const eligibility = evaluateSpinEligibility(parsed.userName);
+    if (!eligibility.allowed) {
+      const blockedMessage =
+        eligibility.reason === "follow-required"
+          ? `@${parsed.userName} You already used your one spin. Follow the channel to unlock one extra spin this stream.`
+          : `@${parsed.userName} You already used your allowed spins for this stream.`;
+      sendChatReply(null, parsed.userName, parsed.messageId, blockedMessage);
       return;
     }
 
