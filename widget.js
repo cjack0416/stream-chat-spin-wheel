@@ -68,6 +68,8 @@ const TAU = Math.PI * 2;
 let triggerCommand = "!spin";
 let spinDurationMs = 8000;
 let resultHoldMs = 7000;
+let winnerApiUrl = "";
+let winnerApiToken = "";
 const minFullTurns = 8;
 const maxFullTurns = 12;
 
@@ -147,6 +149,26 @@ function hideWidgetLater() {
   }, resultHoldMs);
 }
 
+async function reportWinner(hero, userName) {
+  if (!winnerApiUrl) return;
+
+  const payload = { hero, userName };
+  const headers = { "Content-Type": "application/json" };
+  if (winnerApiToken) {
+    headers["x-api-token"] = winnerApiToken;
+  }
+
+  try {
+    await fetch(winnerApiUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload)
+    });
+  } catch (_error) {
+    // Ignore network failures so widget behavior is not interrupted.
+  }
+}
+
 function spinForUser(userName) {
   if (isSpinning) return;
 
@@ -178,7 +200,9 @@ function spinForUser(userName) {
     rotation = normalizeAngle(rotation);
     drawWheel();
     isSpinning = false;
-    showWinner(HEROES[targetIndex], userName);
+    const hero = HEROES[targetIndex];
+    showWinner(hero, userName);
+    reportWinner(hero, userName);
     hideWidgetLater();
   }
 
@@ -218,6 +242,17 @@ window.addEventListener("onWidgetLoad", (obj) => {
 
   if (Number.isFinite(Number(fieldData.resultHoldMs))) {
     resultHoldMs = Math.max(1000, Number(fieldData.resultHoldMs));
+  }
+
+  if (typeof fieldData.winnerApiUrl === "string" && fieldData.winnerApiUrl.trim()) {
+    winnerApiUrl = fieldData.winnerApiUrl.trim();
+  }
+
+  if (
+    typeof fieldData.winnerApiToken === "string" &&
+    fieldData.winnerApiToken.trim()
+  ) {
+    winnerApiToken = fieldData.winnerApiToken.trim();
   }
 
   drawWheel();

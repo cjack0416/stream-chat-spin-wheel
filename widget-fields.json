@@ -19,5 +19,15 @@
     "min": 1000,
     "max": 30000,
     "step": 100
+  },
+  "winnerApiUrl": {
+    "type": "text",
+    "label": "Winner API URL",
+    "value": "http://localhost:3001/api/winner"
+  },
+  "winnerApiToken": {
+    "type": "text",
+    "label": "Winner API Token (optional)",
+    "value": ""
   }
 }
