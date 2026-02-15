@@ -20,6 +20,7 @@ Important widget fields:
 - `spinCommand`: command to trigger spin (default `!spin`)
 - `winnerApiUrl`: where winner events are sent (default `http://localhost:3001/api/winner`)
 - `winnerApiToken`: optional token if your API is protected
+- `chatReplyApiUrl`: where chat reply events are sent (default `http://localhost:3001/api/chat-reply`)
 
 ## 2) Run Winner API (Node.js)
 
@@ -35,7 +36,9 @@ Available endpoints:
 
 - `GET /health`
 - `GET /api/winner`
+- `GET /api/winner/message`
 - `POST /api/winner` with JSON body `{ "hero": "...", "userName": "..." }`
+- `POST /api/chat-reply` with JSON body `{ "hero": "...", "userName": "...", "replyTo": "..." }`
 - `GET /api/winner/stream` (Server-Sent Events)
 
 Optional environment variables (`server/.env.example`):
@@ -43,8 +46,11 @@ Optional environment variables (`server/.env.example`):
 - `PORT=3001`
 - `CORS_ORIGIN=*`
 - `WINNER_API_TOKEN=`
+- `STREAMELEMENTS_JWT=`
+- `STREAMELEMENTS_CHANNEL_ID=`
 
 If `WINNER_API_TOKEN` is set, widget must send matching token via `winnerApiToken` field.
+`POST /api/chat-reply` requires both `STREAMELEMENTS_JWT` and `STREAMELEMENTS_CHANNEL_ID`.
 
 ## 3) Run Dashboard (React + Vite)
 

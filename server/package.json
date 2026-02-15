@@ -8,8 +8,8 @@
     "npm": ">=10.0.0 <11"
   },
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "dev": "node --env-file=.env --watch src/index.js",
+    "start": "node --env-file=.env src/index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

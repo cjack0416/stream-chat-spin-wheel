@@ -70,6 +70,7 @@ let spinDurationMs = 8000;
 let resultHoldMs = 7000;
 let winnerApiUrl = "";
 let winnerApiToken = "";
+let chatReplyApiUrl = "";
 const minFullTurns = 8;
 const maxFullTurns = 12;
 
@@ -169,7 +170,40 @@ async function reportWinner(hero, userName) {
   }
 }
 
-function spinForUser(userName) {
+async function sendChatReply(hero, userName, messageId) {
+  if (!chatReplyApiUrl) return;
+
+  const payload = {
+    hero,
+    userName
+  };
+  if (messageId) {
+    payload.replyTo = messageId;
+  }
+
+  const headers = { "Content-Type": "application/json" };
+  if (winnerApiToken) {
+    headers["x-api-token"] = winnerApiToken;
+  }
+
+  try {
+    const response = await fetch(chatReplyApiUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseText = await response.text().catch(() => "");
+      console.error(
+        `Failed to send chat reply via server (${response.status}): ${responseText}`
+      );
+    }
+  } catch (_error) {
+    // Ignore network failures so widget behavior is not interrupted.
+  }
+}
+
+function spinForUser(userName, messageId) {
   if (isSpinning) return;
 
   isSpinning = true;
@@ -203,6 +237,7 @@ function spinForUser(userName) {
     const hero = HEROES[targetIndex];
     showWinner(hero, userName);
     reportWinner(hero, userName);
+    sendChatReply(hero, userName, messageId);
     hideWidgetLater();
   }
 
@@ -217,10 +252,12 @@ function parseMessageEvent(detail) {
   const rawText = data.text || data.message || data.msg || "";
   const userName =
     data.displayName || data.nick || data.username || data.user || "";
+  const messageId = data.msgId || data.msgid || data.messageId || data.id || "";
 
   return {
     text: String(rawText).trim(),
-    userName: String(userName).trim()
+    userName: String(userName).trim(),
+    messageId: String(messageId).trim()
   };
 }
 
@@ -255,6 +292,13 @@ window.addEventListener("onWidgetLoad", (obj) => {
     winnerApiToken = fieldData.winnerApiToken.trim();
   }
 
+  if (
+    typeof fieldData.chatReplyApiUrl === "string" &&
+    fieldData.chatReplyApiUrl.trim()
+  ) {
+    chatReplyApiUrl = fieldData.chatReplyApiUrl.trim();
+  }
+
   drawWheel();
 });
 
@@ -267,5 +311,5 @@ window.addEventListener("onEventReceived", (obj) => {
   const parsed = parseMessageEvent(detail);
   if (!parsed || !isSpinCommand(parsed.text)) return;
 
-  spinForUser(parsed.userName);
+  spinForUser(parsed.userName, parsed.messageId);
 });

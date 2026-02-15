@@ -29,5 +29,10 @@
     "type": "text",
     "label": "Winner API Token (optional)",
     "value": ""
+  },
+  "chatReplyApiUrl": {
+    "type": "text",
+    "label": "Chat Reply API URL",
+    "value": "http://localhost:3001/api/chat-reply"
   }
 }
