@@ -25,6 +25,11 @@
     "label": "Winner API URL",
     "value": "http://localhost:3001/api/winner"
   },
+  "spinEnabledApiUrl": {
+    "type": "text",
+    "label": "Spin Enabled API URL",
+    "value": "http://localhost:3001/api/spin-enabled"
+  },
   "winnerApiToken": {
     "type": "text",
     "label": "Winner API Token (optional)",

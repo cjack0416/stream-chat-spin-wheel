@@ -40,6 +40,48 @@ body {
   color: #94a3b8;
 }
 
+.toggle-card {
+  margin-top: 20px;
+  border-radius: 14px;
+  padding: 20px;
+  background: linear-gradient(145deg, #0f766e 0%, #0f172a 70%);
+  border: 1px solid #14b8a6;
+}
+
+.toggle-card__label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  color: #99f6e4;
+}
+
+.toggle-card__state {
+  margin-top: 8px;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.toggle-card__button {
+  margin-top: 14px;
+  border: 1px solid #ccfbf1;
+  background: #14b8a6;
+  color: #062923;
+  font-weight: 800;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.toggle-card__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.toggle-card__error {
+  margin-top: 10px;
+  color: #fecaca;
+}
+
 .winner-card {
   margin-top: 20px;
   border-radius: 14px;

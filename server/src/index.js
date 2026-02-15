@@ -9,6 +9,7 @@ const streamElementsJwt = process.env.STREAMELEMENTS_JWT || "";
 const streamElementsChannelId = process.env.STREAMELEMENTS_CHANNEL_ID || "";
 
 let latestWinner = null;
+let spinEnabled = true;
 const sseClients = new Set();
 
 app.use(cors({ origin: corsOrigin }));
@@ -33,6 +34,24 @@ app.get("/health", (_req, res) => {
 
 app.get("/api/winner", (_req, res) => {
   res.json({ winner: latestWinner });
+});
+
+app.get("/api/spin-enabled", (_req, res) => {
+  res.json({ spinEnabled });
+});
+
+app.post("/api/spin-enabled", (req, res) => {
+  if (!isAuthorized(req)) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  if (typeof req.body.spinEnabled !== "boolean") {
+    return res.status(400).json({ error: "spinEnabled boolean is required" });
+  }
+
+  spinEnabled = req.body.spinEnabled;
+  console.log("[spin-enabled] updated", { spinEnabled });
+  return res.status(200).json({ spinEnabled });
 });
 
 app.get("/api/winner/message", (_req, res) => {
@@ -70,6 +89,8 @@ app.post("/api/chat-reply", async (req, res) => {
   const requestMeta = {
     hasAuthHeader: Boolean(req.get("x-api-token")),
     hasHero: typeof req.body.hero === "string" && Boolean(req.body.hero.trim()),
+    hasCustomMessage:
+      typeof req.body.message === "string" && Boolean(req.body.message.trim()),
     hasUserName:
       typeof req.body.userName === "string" && Boolean(req.body.userName.trim()),
     hasReplyTo:
@@ -93,18 +114,22 @@ app.post("/api/chat-reply", async (req, res) => {
   }
 
   const hero = typeof req.body.hero === "string" ? req.body.hero.trim() : "";
+  const customMessage =
+    typeof req.body.message === "string" ? req.body.message.trim() : "";
   const userName =
     typeof req.body.userName === "string" ? req.body.userName.trim() : "";
   const replyTo =
     typeof req.body.replyTo === "string" ? req.body.replyTo.trim() : "";
 
-  if (!hero) {
-    console.error("[chat-reply] rejected: missing hero in payload");
-    return res.status(400).json({ error: "hero is required" });
+  if (!hero && !customMessage) {
+    console.error("[chat-reply] rejected: missing hero/message in payload");
+    return res.status(400).json({ error: "hero or message is required" });
   }
 
   const body = {
-    message: userName
+    message: customMessage
+      ? customMessage
+      : userName
       ? `@${userName} Your spin landed on ${hero}!`
       : `Your spin landed on ${hero}!`
   };

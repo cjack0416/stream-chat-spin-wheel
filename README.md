@@ -19,6 +19,7 @@ Important widget fields:
 
 - `spinCommand`: command to trigger spin (default `!spin`)
 - `winnerApiUrl`: where winner events are sent (default `http://localhost:3001/api/winner`)
+- `spinEnabledApiUrl`: where widget checks whether spinning is enabled (default `http://localhost:3001/api/spin-enabled`)
 - `winnerApiToken`: optional token if your API is protected
 - `chatReplyApiUrl`: where chat reply events are sent (default `http://localhost:3001/api/chat-reply`)
 
@@ -36,8 +37,10 @@ Available endpoints:
 
 - `GET /health`
 - `GET /api/winner`
+- `GET /api/spin-enabled`
 - `GET /api/winner/message`
 - `POST /api/winner` with JSON body `{ "hero": "...", "userName": "..." }`
+- `POST /api/spin-enabled` with JSON body `{ "spinEnabled": true|false }`
 - `POST /api/chat-reply` with JSON body `{ "hero": "...", "userName": "...", "replyTo": "..." }`
 - `GET /api/winner/stream` (Server-Sent Events)
 

@@ -69,6 +69,7 @@ let triggerCommand = "!spin";
 let spinDurationMs = 8000;
 let resultHoldMs = 7000;
 let winnerApiUrl = "";
+let spinEnabledApiUrl = "";
 let winnerApiToken = "";
 let chatReplyApiUrl = "";
 const minFullTurns = 8;
@@ -170,13 +171,38 @@ async function reportWinner(hero, userName) {
   }
 }
 
-async function sendChatReply(hero, userName, messageId) {
+async function isSpinFeatureEnabled() {
+  if (!spinEnabledApiUrl) return true;
+
+  const headers = {};
+  if (winnerApiToken) {
+    headers["x-api-token"] = winnerApiToken;
+  }
+
+  try {
+    const response = await fetch(spinEnabledApiUrl, {
+      method: "GET",
+      headers
+    });
+    if (!response.ok) return true;
+
+    const json = await response.json();
+    return json.spinEnabled !== false;
+  } catch (_error) {
+    return true;
+  }
+}
+
+async function sendChatReply(hero, userName, messageId, customMessage) {
   if (!chatReplyApiUrl) return;
 
-  const payload = {
-    hero,
-    userName
-  };
+  const payload = { userName };
+  if (hero) {
+    payload.hero = hero;
+  }
+  if (customMessage) {
+    payload.message = customMessage;
+  }
   if (messageId) {
     payload.replyTo = messageId;
   }
@@ -286,6 +312,13 @@ window.addEventListener("onWidgetLoad", (obj) => {
   }
 
   if (
+    typeof fieldData.spinEnabledApiUrl === "string" &&
+    fieldData.spinEnabledApiUrl.trim()
+  ) {
+    spinEnabledApiUrl = fieldData.spinEnabledApiUrl.trim();
+  }
+
+  if (
     typeof fieldData.winnerApiToken === "string" &&
     fieldData.winnerApiToken.trim()
   ) {
@@ -303,13 +336,26 @@ window.addEventListener("onWidgetLoad", (obj) => {
 });
 
 window.addEventListener("onEventReceived", (obj) => {
-  const detail = obj && obj.detail ? obj.detail : {};
-  const listener = detail.listener || "";
+  async function handleMessageEvent() {
+    const detail = obj && obj.detail ? obj.detail : {};
+    const listener = detail.listener || "";
 
-  if (listener !== "message") return;
+    if (listener !== "message") return;
 
-  const parsed = parseMessageEvent(detail);
-  if (!parsed || !isSpinCommand(parsed.text)) return;
+    const parsed = parseMessageEvent(detail);
+    if (!parsed || !isSpinCommand(parsed.text)) return;
 
-  spinForUser(parsed.userName, parsed.messageId);
+    const enabled = await isSpinFeatureEnabled();
+    if (!enabled) {
+      const inactiveMessage = parsed.userName
+        ? `@${parsed.userName} The spin feature is not active right now`
+        : "The spin feature is not active right now";
+      sendChatReply(null, parsed.userName, parsed.messageId, inactiveMessage);
+      return;
+    }
+
+    spinForUser(parsed.userName, parsed.messageId);
+  }
+
+  handleMessageEvent();
 });
