@@ -69,9 +69,10 @@ let triggerCommand = "!spin";
 let spinDurationMs = 8000;
 let resultHoldMs = 7000;
 let winnerApiUrl = "";
-let spinEnabledApiUrl = "";
-let spinAttemptApiUrl = "";
 let spinFollowApiUrl = "";
+let spinQueueEnqueueApiUrl = "";
+let spinQueueStateApiUrl = "";
+let spinQueueCompleteApiUrl = "";
 let winnerApiToken = "";
 let chatReplyApiUrl = "";
 const minFullTurns = 8;
@@ -80,6 +81,8 @@ const maxFullTurns = 12;
 let rotation = 0;
 let isSpinning = false;
 let resultTimer = null;
+let queuePollTimer = null;
+let currentQueueRequestId = "";
 
 function normalizeAngle(rad) {
   const r = rad % TAU;
@@ -188,44 +191,28 @@ function getAuthHeaders() {
   return headers;
 }
 
-async function isSpinFeatureEnabled() {
-  if (!spinEnabledApiUrl) return true;
-
-  try {
-    const response = await fetch(spinEnabledApiUrl, {
-      method: "GET",
-      headers: winnerApiToken ? { "x-api-token": winnerApiToken } : {}
-    });
-    if (!response.ok) return true;
-
-    const json = await response.json();
-    return json.spinEnabled !== false;
-  } catch (_error) {
-    return true;
-  }
-}
-
-async function attemptSpinForUser(userName) {
-  if (!spinAttemptApiUrl) {
-    return { allowed: true, reason: "no-attempt-api-configured" };
+async function enqueueSpinRequest(userName, messageId) {
+  if (!spinQueueEnqueueApiUrl) {
+    return { queued: false, reason: "queue-api-not-configured" };
   }
 
   try {
-    const response = await fetch(spinAttemptApiUrl, {
+    const response = await fetch(spinQueueEnqueueApiUrl, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ userName })
+      body: JSON.stringify({ userName, messageId })
     });
     if (!response.ok) {
-      return { allowed: false, reason: "attempt-api-error" };
+      return { queued: false, reason: "queue-api-error" };
     }
     const json = await response.json();
     return {
-      allowed: json.allowed === true,
-      reason: String(json.reason || "")
+      queued: json.queued === true,
+      reason: String(json.reason || ""),
+      queuePosition: Number(json.queuePosition || 0)
     };
   } catch (_error) {
-    return { allowed: false, reason: "attempt-api-unreachable" };
+    return { queued: false, reason: "queue-api-unreachable" };
   }
 }
 
@@ -311,6 +298,7 @@ function spinForUser(userName, messageId) {
     showWinner(hero, userName);
     reportWinner(hero, userName);
     sendChatReply(hero, userName, messageId);
+    completeQueueItem(currentQueueRequestId);
     hideWidgetLater();
   }
 
@@ -353,6 +341,53 @@ function isSpinCommand(text) {
   return text.toLowerCase() === triggerCommand;
 }
 
+async function completeQueueItem(queueId) {
+  if (!spinQueueCompleteApiUrl || !queueId) return;
+
+  try {
+    await fetch(spinQueueCompleteApiUrl, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id: queueId })
+    });
+  } catch (_error) {
+    // Ignore completion failures; dashboard can still recover manually.
+  }
+}
+
+async function pollQueueState() {
+  if (!spinQueueStateApiUrl || isSpinning) return;
+
+  try {
+    const response = await fetch(spinQueueStateApiUrl, {
+      method: "GET",
+      headers: winnerApiToken ? { "x-api-token": winnerApiToken } : {}
+    });
+    if (!response.ok) return;
+
+    const json = await response.json();
+    const activeItem = json && json.activeItem ? json.activeItem : null;
+    if (!activeItem || !activeItem.id || !activeItem.userName) {
+      currentQueueRequestId = "";
+      return;
+    }
+    if (currentQueueRequestId === activeItem.id) return;
+
+    currentQueueRequestId = activeItem.id;
+    spinForUser(activeItem.userName, activeItem.messageId || "");
+  } catch (_error) {
+    // Ignore polling failures to keep widget stable.
+  }
+}
+
+function startQueuePolling() {
+  if (queuePollTimer) {
+    clearInterval(queuePollTimer);
+  }
+  queuePollTimer = setInterval(pollQueueState, 1200);
+  pollQueueState();
+}
+
 window.addEventListener("onWidgetLoad", (obj) => {
   const fieldData =
     obj && obj.detail && obj.detail.fieldData ? obj.detail.fieldData : {};
@@ -374,17 +409,24 @@ window.addEventListener("onWidgetLoad", (obj) => {
   }
 
   if (
-    typeof fieldData.spinEnabledApiUrl === "string" &&
-    fieldData.spinEnabledApiUrl.trim()
+    typeof fieldData.spinQueueEnqueueApiUrl === "string" &&
+    fieldData.spinQueueEnqueueApiUrl.trim()
   ) {
-    spinEnabledApiUrl = fieldData.spinEnabledApiUrl.trim();
+    spinQueueEnqueueApiUrl = fieldData.spinQueueEnqueueApiUrl.trim();
   }
 
   if (
-    typeof fieldData.spinAttemptApiUrl === "string" &&
-    fieldData.spinAttemptApiUrl.trim()
+    typeof fieldData.spinQueueStateApiUrl === "string" &&
+    fieldData.spinQueueStateApiUrl.trim()
   ) {
-    spinAttemptApiUrl = fieldData.spinAttemptApiUrl.trim();
+    spinQueueStateApiUrl = fieldData.spinQueueStateApiUrl.trim();
+  }
+
+  if (
+    typeof fieldData.spinQueueCompleteApiUrl === "string" &&
+    fieldData.spinQueueCompleteApiUrl.trim()
+  ) {
+    spinQueueCompleteApiUrl = fieldData.spinQueueCompleteApiUrl.trim();
   }
 
   if (
@@ -409,6 +451,7 @@ window.addEventListener("onWidgetLoad", (obj) => {
   }
 
   drawWheel();
+  startQueuePolling();
 });
 
 window.addEventListener("onEventReceived", (obj) => {
@@ -429,31 +472,31 @@ window.addEventListener("onEventReceived", (obj) => {
     const parsed = parseMessageEvent(detail);
     if (!parsed || !isSpinCommand(parsed.text)) return;
 
-    const enabled = await isSpinFeatureEnabled();
-    if (!enabled) {
-      const inactiveMessage = parsed.userName
-        ? `@${parsed.userName} The spin feature is not active right now`
-        : "The spin feature is not active right now";
-      sendChatReply(null, parsed.userName, parsed.messageId, inactiveMessage);
-      return;
-    }
-
-    const attempt = await attemptSpinForUser(parsed.userName);
-    if (!attempt.allowed) {
+    const enqueueResult = await enqueueSpinRequest(
+      parsed.userName,
+      parsed.messageId
+    );
+    if (!enqueueResult.queued) {
       const blockedMessage =
-        attempt.reason === "follow-required"
-          ? `@${parsed.userName} You already used your one spin. Follow the channel to unlock one extra spin this stream.`
-          : attempt.reason === "feature-disabled"
+        enqueueResult.reason === "feature-disabled"
           ? `@${parsed.userName} The spin feature is not active right now`
-          : attempt.reason === "attempt-api-unreachable" ||
-            attempt.reason === "attempt-api-error"
-          ? `@${parsed.userName} Spin service is temporarily unavailable. Try again in a moment.`
+          : enqueueResult.reason === "follow-required"
+          ? `@${parsed.userName} You already used your one spin. Follow the channel to unlock one extra spin this stream.`
+          : enqueueResult.reason === "already-queued"
+          ? `@${parsed.userName} You are already in queue.`
+          : enqueueResult.reason === "already-active"
+          ? `@${parsed.userName} You are currently up next.`
+          : enqueueResult.reason === "queue-api-unreachable" ||
+            enqueueResult.reason === "queue-api-error" ||
+            enqueueResult.reason === "queue-api-not-configured"
+          ? `@${parsed.userName} Spin queue service is temporarily unavailable.`
           : `@${parsed.userName} You already used your allowed spins for this stream.`;
       sendChatReply(null, parsed.userName, parsed.messageId, blockedMessage);
       return;
     }
 
-    spinForUser(parsed.userName, parsed.messageId);
+    const queuedMessage = `@${parsed.userName} You are in the spin queue (position ${enqueueResult.queuePosition}).`;
+    sendChatReply(null, parsed.userName, parsed.messageId, queuedMessage);
   }
 
   handleMessageEvent();

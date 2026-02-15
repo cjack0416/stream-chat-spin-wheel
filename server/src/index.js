@@ -14,6 +14,8 @@ const sseClients = new Set();
 let streamSessionId = Date.now().toString();
 let streamSessionStartedAt = new Date().toISOString();
 const userSpinRecords = new Map();
+const spinQueue = [];
+let activeQueueItem = null;
 
 app.use(cors({ origin: corsOrigin }));
 app.use(express.json());
@@ -98,8 +100,19 @@ function registerFollowEvent(userName) {
 
 function resetStreamSession() {
   userSpinRecords.clear();
+  spinQueue.length = 0;
+  activeQueueItem = null;
   streamSessionId = Date.now().toString();
   streamSessionStartedAt = new Date().toISOString();
+}
+
+function makeQueueId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function findQueuedItemByUser(userName) {
+  const key = normalizeUserKey(userName);
+  return spinQueue.find((item) => normalizeUserKey(item.userName) === key);
 }
 
 app.get("/health", (_req, res) => {
@@ -143,7 +156,9 @@ app.get("/api/stream/state", (_req, res) => {
     streamSessionId,
     streamSessionStartedAt,
     trackedUsers: userSpinRecords.size,
-    spinEnabled
+    spinEnabled,
+    queueLength: spinQueue.length,
+    activeQueueItem
   });
 });
 
@@ -203,6 +218,116 @@ app.post("/api/spin-follow", (req, res) => {
     ok: true,
     streamSessionId,
     streamSessionStartedAt
+  });
+});
+
+app.get("/api/queue/state", (_req, res) => {
+  return res.json({
+    activeItem: activeQueueItem,
+    queue: spinQueue,
+    queueLength: spinQueue.length
+  });
+});
+
+app.post("/api/queue/enqueue", (req, res) => {
+  if (!isAuthorized(req)) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const userName =
+    typeof req.body.userName === "string" ? req.body.userName.trim() : "";
+  const messageId =
+    typeof req.body.messageId === "string" ? req.body.messageId.trim() : "";
+
+  if (!userName) {
+    return res.status(400).json({ error: "userName is required" });
+  }
+
+  if (!spinEnabled) {
+    return res.status(200).json({ queued: false, reason: "feature-disabled" });
+  }
+
+  if (
+    activeQueueItem &&
+    normalizeUserKey(activeQueueItem.userName) === normalizeUserKey(userName)
+  ) {
+    return res.status(200).json({ queued: false, reason: "already-active" });
+  }
+
+  const existingQueued = findQueuedItemByUser(userName);
+  if (existingQueued) {
+    return res.status(200).json({
+      queued: false,
+      reason: "already-queued",
+      queuePosition: spinQueue.indexOf(existingQueued) + 1
+    });
+  }
+
+  const eligibility = evaluateSpinEligibility(userName);
+  if (!eligibility.allowed) {
+    return res.status(200).json({ queued: false, reason: eligibility.reason });
+  }
+
+  registerSpinUsage(userName);
+
+  const queueItem = {
+    id: makeQueueId(),
+    userName,
+    messageId,
+    enqueuedAt: new Date().toISOString()
+  };
+  spinQueue.push(queueItem);
+
+  return res.status(200).json({
+    queued: true,
+    queuePosition: spinQueue.length,
+    queueLength: spinQueue.length,
+    item: queueItem
+  });
+});
+
+app.post("/api/queue/next", (req, res) => {
+  if (!isAuthorized(req)) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  if (activeQueueItem) {
+    return res
+      .status(409)
+      .json({ error: "Active queue item exists", activeItem: activeQueueItem });
+  }
+
+  const nextItem = spinQueue.shift() || null;
+  activeQueueItem = nextItem;
+
+  return res.status(200).json({
+    activeItem: activeQueueItem,
+    queue: spinQueue,
+    queueLength: spinQueue.length
+  });
+});
+
+app.post("/api/queue/complete", (req, res) => {
+  if (!isAuthorized(req)) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const queueId = typeof req.body.id === "string" ? req.body.id.trim() : "";
+  if (!queueId) {
+    return res.status(400).json({ error: "id is required" });
+  }
+
+  if (!activeQueueItem || activeQueueItem.id !== queueId) {
+    return res.status(409).json({
+      error: "Queue item mismatch",
+      activeItem: activeQueueItem
+    });
+  }
+
+  activeQueueItem = null;
+  return res.status(200).json({
+    ok: true,
+    queueLength: spinQueue.length
   });
 });
 

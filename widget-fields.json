@@ -25,15 +25,20 @@
     "label": "Winner API URL",
     "value": "http://localhost:3001/api/winner"
   },
-  "spinEnabledApiUrl": {
+  "spinQueueEnqueueApiUrl": {
     "type": "text",
-    "label": "Spin Enabled API URL",
-    "value": "http://localhost:3001/api/spin-enabled"
+    "label": "Spin Queue Enqueue API URL",
+    "value": "http://localhost:3001/api/queue/enqueue"
   },
-  "spinAttemptApiUrl": {
+  "spinQueueStateApiUrl": {
     "type": "text",
-    "label": "Spin Attempt API URL",
-    "value": "http://localhost:3001/api/spin-attempt"
+    "label": "Spin Queue State API URL",
+    "value": "http://localhost:3001/api/queue/state"
+  },
+  "spinQueueCompleteApiUrl": {
+    "type": "text",
+    "label": "Spin Queue Complete API URL",
+    "value": "http://localhost:3001/api/queue/complete"
   },
   "spinFollowApiUrl": {
     "type": "text",

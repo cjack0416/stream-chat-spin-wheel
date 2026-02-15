@@ -19,8 +19,9 @@ Important widget fields:
 
 - `spinCommand`: command to trigger spin (default `!spin`)
 - `winnerApiUrl`: where winner events are sent (default `http://localhost:3001/api/winner`)
-- `spinEnabledApiUrl`: where widget checks whether spinning is enabled (default `http://localhost:3001/api/spin-enabled`)
-- `spinAttemptApiUrl`: where widget asks server if a user can spend a spin (default `http://localhost:3001/api/spin-attempt`)
+- `spinQueueEnqueueApiUrl`: where `!spin` requests are queued (default `http://localhost:3001/api/queue/enqueue`)
+- `spinQueueStateApiUrl`: where widget polls active queue item (default `http://localhost:3001/api/queue/state`)
+- `spinQueueCompleteApiUrl`: where widget marks active queue spin complete (default `http://localhost:3001/api/queue/complete`)
 - `spinFollowApiUrl`: where widget reports follow events for bonus-spin unlock (default `http://localhost:3001/api/spin-follow`)
 - `winnerApiToken`: optional token if your API is protected
 - `chatReplyApiUrl`: where chat reply events are sent (default `http://localhost:3001/api/chat-reply`)
@@ -40,12 +41,14 @@ Available endpoints:
 - `GET /health`
 - `GET /api/winner`
 - `GET /api/spin-enabled`
-- `GET /api/spin-eligibility?userName=...`
+- `GET /api/queue/state`
 - `GET /api/stream/state`
 - `GET /api/winner/message`
 - `POST /api/winner` with JSON body `{ "hero": "...", "userName": "..." }`
 - `POST /api/spin-enabled` with JSON body `{ "spinEnabled": true|false }`
-- `POST /api/spin-attempt` with JSON body `{ "userName": "..." }`
+- `POST /api/queue/enqueue` with JSON body `{ "userName": "...", "messageId": "..." }`
+- `POST /api/queue/next` moves first queued user to active spin slot
+- `POST /api/queue/complete` with JSON body `{ "id": "..." }`
 - `POST /api/spin-follow` with JSON body `{ "userName": "..." }`
 - `POST /api/stream/reset` resets per-stream user limits
 - `POST /api/chat-reply` with JSON body `{ "hero": "...", "userName": "...", "replyTo": "..." }`
@@ -77,9 +80,10 @@ To change API base URL, set `VITE_WINNER_API_BASE` (see `dashboard/.env.example`
 ## Notes
 
 - Winner storage is in-memory (resets when server restarts).
-- Per-user spin limits are now service-side per stream session (not widget-local).
+- Per-user spin limits and queue are service-side per stream session (not widget-local).
 - Use dashboard `Reset Stream Limits` to start a new stream session without restarting.
-- While a spin is running, extra `!spin` messages are ignored.
+- Use dashboard `Start Next Spin` to move from queued viewers to the next active spinner.
+- While a spin is running, new `!spin` requests are added to queue.
 - Hero list includes `INVISIBLE WOMAN` (corrected typo from `NVISIBLE WOMAN`).
 
 ## Runtime Requirements

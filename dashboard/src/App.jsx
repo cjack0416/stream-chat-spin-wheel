@@ -17,6 +17,8 @@ export default function App() {
   const [streamSessionId, setStreamSessionId] = useState("-");
   const [streamSessionStartedAt, setStreamSessionStartedAt] = useState(null);
   const [resetStatus, setResetStatus] = useState("idle");
+  const [queueState, setQueueState] = useState({ activeItem: null, queue: [] });
+  const [nextStatus, setNextStatus] = useState("idle");
 
   const winnerStreamUrl = useMemo(() => {
     const base = apiBase.replace(/\/$/, "");
@@ -43,6 +45,16 @@ export default function App() {
     return `${base}/api/stream/reset`;
   }, []);
 
+  const queueStateUrl = useMemo(() => {
+    const base = apiBase.replace(/\/$/, "");
+    return `${base}/api/queue/state`;
+  }, []);
+
+  const queueNextUrl = useMemo(() => {
+    const base = apiBase.replace(/\/$/, "");
+    return `${base}/api/queue/next`;
+  }, []);
+
   const authHeaders = useMemo(() => {
     if (!apiToken) return {};
     return { "x-api-token": apiToken };
@@ -50,17 +62,21 @@ export default function App() {
 
   useEffect(() => {
     let mounted = true;
+    let queueInterval;
 
-    async function loadInitialWinner() {
+    async function loadInitialState() {
       try {
-        const [winnerResponse, spinResponse, streamStateResponse] = await Promise.all([
+        const [winnerResponse, spinResponse, streamStateResponse, queueResponse] =
+          await Promise.all([
           fetch(winnerApiUrl),
           fetch(spinEnabledApiUrl),
-          fetch(streamStateUrl)
+          fetch(streamStateUrl),
+          fetch(queueStateUrl)
         ]);
         const winnerJson = await winnerResponse.json();
         const spinJson = await spinResponse.json();
         const streamStateJson = await streamStateResponse.json();
+        const queueJson = await queueResponse.json();
         if (mounted) {
           if (winnerJson.winner) {
             setWinner(winnerJson.winner);
@@ -72,13 +88,34 @@ export default function App() {
           if (streamStateJson.streamSessionStartedAt) {
             setStreamSessionStartedAt(streamStateJson.streamSessionStartedAt);
           }
+          setQueueState({
+            activeItem: queueJson.activeItem || null,
+            queue: Array.isArray(queueJson.queue) ? queueJson.queue : []
+          });
         }
       } catch (_error) {
         if (mounted) setStatus("disconnected");
       }
     }
 
-    loadInitialWinner();
+    async function refreshQueueState() {
+      try {
+        const response = await fetch(queueStateUrl);
+        if (!response.ok) return;
+        const json = await response.json();
+        if (mounted) {
+          setQueueState({
+            activeItem: json.activeItem || null,
+            queue: Array.isArray(json.queue) ? json.queue : []
+          });
+        }
+      } catch (_error) {
+        // Ignore queue polling issues to keep dashboard responsive.
+      }
+    }
+
+    loadInitialState();
+    queueInterval = setInterval(refreshQueueState, 1500);
 
     const source = new EventSource(winnerStreamUrl);
     source.onopen = () => {
@@ -101,9 +138,10 @@ export default function App() {
 
     return () => {
       mounted = false;
+      clearInterval(queueInterval);
       source.close();
     };
-  }, [spinEnabledApiUrl, streamStateUrl, winnerApiUrl, winnerStreamUrl]);
+  }, [queueStateUrl, spinEnabledApiUrl, streamStateUrl, winnerApiUrl, winnerStreamUrl]);
 
   async function toggleSpinEnabled() {
     const nextValue = !spinEnabled;
@@ -147,6 +185,30 @@ export default function App() {
       setResetStatus("idle");
     } catch (_error) {
       setResetStatus("error");
+    }
+  }
+
+  async function moveToNextQueueUser() {
+    setNextStatus("saving");
+    try {
+      const response = await fetch(queueNextUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`Failed with status ${response.status}`);
+      }
+      const json = await response.json();
+      setQueueState({
+        activeItem: json.activeItem || null,
+        queue: Array.isArray(json.queue) ? json.queue : []
+      });
+      setNextStatus("idle");
+    } catch (_error) {
+      setNextStatus("error");
     }
   }
 
@@ -195,6 +257,38 @@ export default function App() {
           {resetStatus === "error" ? (
             <div className="toggle-card__error">Failed to reset stream session.</div>
           ) : null}
+        </div>
+
+        <div className="queue-card">
+          <div className="queue-card__label">Spin Queue</div>
+          <div className="queue-card__meta">
+            Active: {queueState.activeItem ? `@${queueState.activeItem.userName}` : "None"}
+          </div>
+          <div className="queue-card__meta">Waiting: {queueState.queue.length}</div>
+          <button
+            className="queue-card__button"
+            type="button"
+            onClick={moveToNextQueueUser}
+            disabled={nextStatus === "saving"}
+          >
+            {nextStatus === "saving" ? "Advancing..." : "Start Next Spin"}
+          </button>
+          {nextStatus === "error" ? (
+            <div className="toggle-card__error">
+              Could not advance queue. Complete current active spin first.
+            </div>
+          ) : null}
+          <div className="queue-card__list">
+            {queueState.queue.length === 0 ? (
+              <div className="queue-card__empty">No viewers waiting in queue.</div>
+            ) : (
+              queueState.queue.slice(0, 8).map((item, index) => (
+                <div className="queue-card__item" key={item.id}>
+                  {index + 1}. @{item.userName}
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
         <div className="winner-card">
