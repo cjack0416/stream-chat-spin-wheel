@@ -63,3 +63,16 @@ To change API base URL, set `VITE_WINNER_API_BASE` (see `dashboard/.env.example`
 - Winner storage is in-memory (resets when server restarts).
 - While a spin is running, extra `!spin` messages are ignored.
 - Hero list includes `INVISIBLE WOMAN` (corrected typo from `NVISIBLE WOMAN`).
+
+## Runtime Requirements
+
+- Node.js `>=20.5.0` (repo pins `20.12.2` in `.nvmrc`)
+- npm `>=10.0.0 <11`
+
+If you see an error from `.../npm/lib/es6/validate-engines.js`, your global npm and Node versions are mismatched. Fix with:
+
+```bash
+nvm install 20.12.2
+nvm use 20.12.2
+npm i -g npm@10.5.0
+```
