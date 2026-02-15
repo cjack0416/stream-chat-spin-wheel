@@ -90,6 +90,13 @@ function pickRandomIndex() {
   return Math.floor(Math.random() * HEROES.length);
 }
 
+function getIndexAtPointer(currentRotation) {
+  const arc = TAU / HEROES.length;
+  const pointerInUnrotatedSpace = normalizeAngle(-Math.PI / 2 - currentRotation);
+  const normalizedFromFirstSlice = normalizeAngle(pointerInUnrotatedSpace + Math.PI / 2);
+  return Math.floor(normalizedFromFirstSlice / arc) % HEROES.length;
+}
+
 function drawWheel() {
   const size = canvas.width;
   const center = size / 2;
@@ -278,7 +285,8 @@ function spinForUser(userName, messageId) {
   const arc = TAU / HEROES.length;
   const wedgeCenter = targetIndex * arc + arc / 2;
   const desiredRotationAtRest = -wedgeCenter;
-  const turns = minFullTurns + Math.random() * (maxFullTurns - minFullTurns);
+  const turns =
+    Math.floor(Math.random() * (maxFullTurns - minFullTurns + 1)) + minFullTurns;
   const endRotation = turns * TAU + desiredRotationAtRest;
   const startRotation = rotation;
   const delta = endRotation - startRotation;
@@ -298,7 +306,8 @@ function spinForUser(userName, messageId) {
     rotation = normalizeAngle(rotation);
     drawWheel();
     isSpinning = false;
-    const hero = HEROES[targetIndex];
+    const landedIndex = getIndexAtPointer(rotation);
+    const hero = HEROES[landedIndex];
     showWinner(hero, userName);
     reportWinner(hero, userName);
     sendChatReply(hero, userName, messageId);
