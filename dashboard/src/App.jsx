@@ -206,7 +206,6 @@ export default function App() {
           <div className="winner-card__meta">Updated: {formatTime(winner?.receivedAt)}</div>
         </div>
 
-        <p className="hint">Set <code>VITE_WINNER_API_BASE</code> and optionally <code>VITE_WINNER_API_TOKEN</code> if your server is protected.</p>
       </section>
     </main>
   );
