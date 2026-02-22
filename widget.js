@@ -71,6 +71,7 @@ const TAU = Math.PI * 2;
 let triggerCommand = "!spin";
 let spinDurationMs = 8000;
 let resultHoldMs = 7000;
+let spinSound;
 let winnerApiUrl = "";
 let spinFollowApiUrl = "";
 let spinQueueEnqueueApiUrl = "";
@@ -271,6 +272,19 @@ async function sendChatReply(hero, userName, messageId, customMessage) {
   }
 }
 
+function playSound(sound) {
+  if (sound !== undefined && sound !== null && sound.tagName.toLowerCase() === "audio") {
+    sound.play();
+  }
+}
+
+function stopSound(sound) {
+  if (sound !== undefined && sound !== null && sound.tagName.toLowerCase() === "audio" && !spinSound.ended) {
+    spinSound.pause();
+    spinSound.currentTime = 0;
+  } 
+}
+
 function spinForUser(userName, messageId) {
   if (isSpinning) return;
 
@@ -303,6 +317,7 @@ function spinForUser(userName, messageId) {
     rotation = normalizeAngle(rotation);
     drawWheel();
     isSpinning = false;
+    stopSound(spinSound);
     const landedIndex = getIndexAtPointer(rotation);
     const hero = HEROES[landedIndex];
     showWinner(hero, userName);
@@ -313,6 +328,7 @@ function spinForUser(userName, messageId) {
     showLatestUserAndHero(hero, userName);
   }
 
+  playSound(spinSound);
   requestAnimationFrame(animate);
 }
 
@@ -413,6 +429,11 @@ window.addEventListener("onWidgetLoad", (obj) => {
 
   if (Number.isFinite(Number(fieldData.resultHoldMs))) {
     resultHoldMs = Math.max(1000, Number(fieldData.resultHoldMs));
+  }
+
+  if (typeof fieldData.spinSound === "string") {
+    console.log("setting sound");
+    spinSound = new Audio(fieldData.spinSound);
   }
 
   if (typeof fieldData.winnerApiUrl === "string" && fieldData.winnerApiUrl.trim()) {
