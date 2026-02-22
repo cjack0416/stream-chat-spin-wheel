@@ -63,6 +63,9 @@ const canvas = document.getElementById("wheel");
 const wheelWrap = document.getElementById("wheel-wrap");
 const winnerEl = document.getElementById("winner");
 const ctx = canvas.getContext("2d");
+const lastSpin = document.getElementById("last-spin");
+const lastSpinUser = document.getElementById("last-spin-user");
+const lastSpinHero = document.getElementById("last-spin-hero");
 
 const TAU = Math.PI * 2;
 let triggerCommand = "!spin";
@@ -161,6 +164,13 @@ function hideWidgetLater() {
     wheelWrap.classList.add("hidden");
     clearWinner();
   }, resultHoldMs);
+}
+
+function showLatestUserAndHero(hero, userName) {
+  if (!lastSpin || !lastSpinUser || !lastSpinHero) return;
+  lastSpinUser.textContent = userName;
+  lastSpinHero.textContent = hero;
+  lastSpin.classList.remove("hidden");
 }
 
 async function reportWinner(hero, userName) {
@@ -300,6 +310,7 @@ function spinForUser(userName, messageId) {
     sendChatReply(hero, userName, messageId);
     completeQueueItem(currentQueueRequestId);
     hideWidgetLater();
+    showLatestUserAndHero(hero, userName);
   }
 
   requestAnimationFrame(animate);
