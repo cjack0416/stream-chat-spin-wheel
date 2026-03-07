@@ -1,0 +1,200 @@
+{
+    "heroList": [
+        {
+            "name": "ADAM WARLOCK",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "ANGELA",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "BLACK PANTHER",
+            "role": "DUELIST"
+        },
+        {
+            "name": "BLACK WIDOW",
+            "role": "DUELIST"
+        },
+        {
+            "name": "BLADE",
+            "role": "DUELIST"
+        },
+        {
+            "name": "CAPTAIN AMERICA",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "CLOAK & DAGGER",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "DAREDEVIL",
+            "role": "DUELIST"
+        },
+        {
+            "name": "DEADPOOL (TANKPOOL)",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "DEADPOOL (DUELPOOL)",
+            "role": "DUELIST"
+        },
+        {
+            "name": "DEADPOOL (HEALPOOL)",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "DOCTOR STRANGE",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "ELSA BLOODSTONE",
+            "role": "DUELIST"
+        },
+        {
+            "name": "EMMA FROST",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "GAMBIT",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "GROOT",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "HAWKEYE",
+            "role": "DUELIST"
+        },
+        {
+            "name": "HELA",
+            "role": "DUELIST"
+        },
+        {
+            "name": "HULK",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "HUMAN TORCH",
+            "role": "DUELIST"
+        },
+        {
+            "name": "INVISIBLE WOMAN",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "IRON FIST",
+            "role": "DUELIST"
+        },
+        {
+            "name": "IRON MAN",
+            "role": "DUELIST"
+        },
+        {
+            "name": "PHOENIX",
+            "role": "DUELIST"
+        },
+        {
+            "name": "JEFF THE LAND SHARK",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "LOKI",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "LUNA SNOW",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "MAGIK",
+            "role": "DUELIST"
+        },
+        {
+            "name": "MAGNETO",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "MANTIS",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "MISTER FANTASTIC",
+            "role": "DUELIST"
+        },
+        {
+            "name": "MOON KNIGHT",
+            "role": "DUELIST"
+        },
+        {
+            "name": "NAMOR",
+            "role": "DUELIST"
+        },
+        {
+            "name": "PENI PARKER",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "PSYLOCKE",
+            "role": "DUELIST"
+        },
+        {
+            "name": "ROCKET RACCOON",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "ROGUE",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "SCARLET WITCH",
+            "role": "DUELIST"
+        },
+        {
+            "name": "SPIDER-MAN",
+            "role": "DUELIST"
+        },
+        {
+            "name": "SQUIRREL GIRL",
+            "role": "DUELIST"
+        },
+        {
+            "name": "STAR-LORD",
+            "role": "DUELIST"
+        },
+        {
+            "name": "STORM",
+            "role": "DUELIST"
+        },
+        {
+            "name": "THE PUNISHER",
+            "role": "DUELIST"
+        },
+        {
+            "name": "THE THING",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "THOR",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "ULTRON",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "VENOM",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "WINTER SOLDIER",
+            "role": "DUELIST"
+        },
+        {
+            "name": "WOLVERINE",
+            "role": "DUELIST"
+        }
+    ]
+}

@@ -3,6 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 const apiBase = import.meta.env.VITE_WINNER_API_BASE || "http://localhost:3001";
 const apiToken = import.meta.env.VITE_WINNER_API_TOKEN || "";
 
+const modeOptions = ["QP", "RANKED"];
+const roleOptions = ["DUELIST", "VANGUARD", "STRATEGIST"];
+
 function formatTime(iso) {
   if (!iso) return "-";
   const date = new Date(iso);
@@ -14,6 +17,10 @@ export default function App() {
   const [status, setStatus] = useState("connecting");
   const [spinEnabled, setSpinEnabled] = useState(true);
   const [toggleStatus, setToggleStatus] = useState("idle");
+  const [mode, setMode] = useState("QP");
+  const [heroRoles, setHeroRoles] = useState(roleOptions);
+  const [activeMode, setActiveMode] = useState();
+  const [activeHeroRoles, setActiveHeroRoles] = useState();
   const [streamSessionId, setStreamSessionId] = useState("-");
   const [streamSessionStartedAt, setStreamSessionStartedAt] = useState(null);
   const [resetStatus, setResetStatus] = useState("idle");
@@ -55,6 +62,11 @@ export default function App() {
     return `${base}/api/queue/next`;
   }, []);
 
+  const spinSettingsUrl = useMemo(() => {
+    const base = apiBase.replace(/\/$/, "");
+    return `${base}/api/spin-settings`;
+  }, []);
+
   const authHeaders = useMemo(() => {
     if (!apiToken) return {};
     return { "x-api-token": apiToken };
@@ -66,17 +78,19 @@ export default function App() {
 
     async function loadInitialState() {
       try {
-        const [winnerResponse, spinResponse, streamStateResponse, queueResponse] =
+        const [winnerResponse, spinResponse, streamStateResponse, queueResponse, spinSettingsResponse] =
           await Promise.all([
           fetch(winnerApiUrl),
           fetch(spinEnabledApiUrl),
           fetch(streamStateUrl),
-          fetch(queueStateUrl)
+          fetch(queueStateUrl),
+          fetch(spinSettingsUrl)
         ]);
         const winnerJson = await winnerResponse.json();
         const spinJson = await spinResponse.json();
         const streamStateJson = await streamStateResponse.json();
         const queueJson = await queueResponse.json();
+        const spinSettingsJson = await spinSettingsResponse.json();
         if (mounted) {
           if (winnerJson.winner) {
             setWinner(winnerJson.winner);
@@ -92,6 +106,14 @@ export default function App() {
             activeItem: queueJson.activeItem || null,
             queue: Array.isArray(queueJson.queue) ? queueJson.queue : []
           });
+          if (spinSettingsJson.mode) {
+            setMode(spinSettingsJson.mode);
+            setActiveMode(spinSettingsJson.mode);
+          }
+          if (spinSettingsJson.heroRoles) {
+            setHeroRoles(spinSettingsJson.heroRoles);
+            setActiveHeroRoles(spinSettingsJson.heroRoles);
+          }
         }
       } catch (_error) {
         if (mounted) setStatus("disconnected");
@@ -141,7 +163,7 @@ export default function App() {
       clearInterval(queueInterval);
       source.close();
     };
-  }, [queueStateUrl, spinEnabledApiUrl, streamStateUrl, winnerApiUrl, winnerStreamUrl]);
+  }, [queueStateUrl, spinEnabledApiUrl, streamStateUrl, winnerApiUrl, winnerStreamUrl, spinSettingsUrl]);
 
   async function toggleSpinEnabled() {
     const nextValue = !spinEnabled;
@@ -164,6 +186,42 @@ export default function App() {
     } catch (_error) {
       setToggleStatus("error");
     }
+  }
+
+  const handleHeroRolesChange = (event) => {
+    const { value, checked } = event.target;
+
+    if (checked) {
+      setHeroRoles((prevHeroRoles) => [...prevHeroRoles, value]);
+    } else {
+      setHeroRoles((prevHeroRoles) => prevHeroRoles.filter((item) => item !== value));
+    }
+  };
+
+  const handleModeChange = (event) => {
+    setMode(event.target.value);
+  };
+
+  async function handleSpinSettingsSubmit(event) {
+    event.preventDefault();
+    try {
+      const response = await fetch(spinSettingsUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders
+        },
+        body: JSON.stringify({ mode: mode, roles: heroRoles })
+      });
+      if (!response.ok) {
+        throw new Error(`Failed with status ${response.status}`);
+      }
+      const json = await response.json();
+      setActiveMode(json.mode);
+      setActiveHeroRoles(json.heroRoles);
+    } catch (error) {
+      console.log(`error sending post mode request with: ${error}`);
+    } 
   }
 
   async function resetStreamSession() {
@@ -298,6 +356,50 @@ export default function App() {
             Requested by: {winner?.userName ? `@${winner.userName}` : "-"}
           </div>
           <div className="winner-card__meta">Updated: {formatTime(winner?.receivedAt)}</div>
+        </div>
+
+        <div className="spin-settings-card">
+          <div className="spin-settings-card__label">Spin Settings</div>
+          <form className="spin-settings-card__form" onSubmit={handleSpinSettingsSubmit}>
+            <div className="spin-settings-card__mode-options">
+              {modeOptions.map((option) => 
+                <label key={option} className="spin-settings-card__labels">
+                  <input
+                    className="spin-settings-card__buttons"
+                    type="radio"
+                    value={option}
+                    name="mode"
+                    checked={mode === option}
+                    onChange={handleModeChange}
+                  />
+                  {option}
+                </label>
+              )}
+            </div>
+            <ul className="spin-settings-card__role-list">
+              {roleOptions.map((role) => 
+                <li key={role} className="spin-settings-card__role-item">
+                  <label className="spin-settings-card__labels">
+                    <input 
+                      className="spin-settings-card__buttons"
+                      type="checkbox"
+                      value={role}
+                      name="roles"
+                      checked={heroRoles.includes(role)}
+                      onChange={handleHeroRolesChange}
+                    />
+                    {role}
+                  </label>
+                </li>
+              )}
+            </ul>
+            <button className="spin-settings-card__button" type="submit">Submit</button>
+            <div className="spin-settings-card__break">
+              <div className="spin-settings-card__active">Active Mode: {activeMode}</div>
+              <div className="spin-settings-card__active">Active Hero Roles: {activeHeroRoles.join(" | ")}
+              </div>
+            </div>
+          </form>
         </div>
 
       </section>

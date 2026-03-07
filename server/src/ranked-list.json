@@ -1,0 +1,60 @@
+{
+    "heroList": [
+        {
+            "name": "DEADPOOL (TANKPOOL)",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "DOCTOR STRANGE",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "ELSA BLOODSTONE",
+            "role": "DUELIST"
+        },
+        {
+            "name": "EMMA FROST",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "INVISIBLE WOMAN",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "PHOENIX",
+            "role": "DUELIST"
+        },
+        {
+            "name": "LOKI",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "LUNA SNOW",
+            "role": "STRATEGIST"
+        },
+        {
+            "name": "MAGNETO",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "THE PUNISHER",
+            "role": "DUELIST"
+        },
+        {
+            "name": "THE THING",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "THOR",
+            "role": "VANGUARD"
+        },
+        {
+            "name": "WINTER SOLDIER",
+            "role": "DUELIST"
+        },
+        {
+            "name": "WOLVERINE",
+            "role": "DUELIST"
+        }
+    ]
+}

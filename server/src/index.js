@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import qpJson from "./qp-list.json" with { type: 'json' };
+import rankedJson from "./ranked-list.json" with { type: 'json' };
 
 const app = express();
 const port = Number(process.env.PORT || 3001);
@@ -7,6 +9,9 @@ const authToken = process.env.WINNER_API_TOKEN || "";
 const corsOrigin = process.env.CORS_ORIGIN || "*";
 const streamElementsJwt = process.env.STREAMELEMENTS_JWT || "";
 const streamElementsChannelId = process.env.STREAMELEMENTS_CHANNEL_ID || "";
+
+const QP = "QP";
+const RANKED = "RANKED";
 
 let latestWinner = null;
 let spinEnabled = true;
@@ -16,6 +21,11 @@ let streamSessionStartedAt = new Date().toISOString();
 const userSpinRecords = new Map();
 const spinQueue = [];
 let activeQueueItem = null;
+let mode = QP;
+let heroRoles = ["DUELIST", "VANGUARD", "STRATEGIST"];
+const qpHeroList = qpJson.heroList;
+const rankedHeroList = rankedJson.heroList;
+let spinList = [];
 
 app.use(cors({ origin: corsOrigin }));
 app.use(express.json());
@@ -117,6 +127,30 @@ function findQueuedItemByUser(userName) {
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
+});
+
+app.get("/api/spin-list", (_req, res) => {
+  return res.status(200).json({ spinList });
+});
+
+app.get("/api/spin-settings", (_req, res) => {
+  return res.status(200).json({ mode, heroRoles });
+});
+
+app.post("/api/spin-settings", (req, res) => {
+  const reqMode = req.body.mode.toUpperCase();
+  const reqRoles = req.body.roles;
+  if (reqMode !== QP && reqMode !== RANKED) {
+    return res.status(400).json({ error: "Correct mode type required" });
+  }
+  mode = reqMode;
+  heroRoles = reqRoles;
+  if (mode === QP) {
+    spinList = qpHeroList.filter(hero => heroRoles.includes(hero.role));
+  } else if (mode === RANKED) {
+    spinList = rankedHeroList.filter(hero => heroRoles.includes(hero.role));
+  }
+  return res.status(200).json({ mode, heroRoles });
 });
 
 app.get("/api/winner", (_req, res) => {

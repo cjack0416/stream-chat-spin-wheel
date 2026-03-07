@@ -199,6 +199,62 @@ body {
   font-size: 16px;
 }
 
+.spin-settings-card {
+  margin-top: 20px;
+  border-radius: 14px;
+  padding: 20px;
+  background: linear-gradient(145deg, #760f0f 0%, #0f172a 70%);
+  border: 1px solid #b81414;
+}
+
+.spin-settings-card__label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  color: #f69999;
+}
+
+.spin-settings-card__form {
+  margin-top: 8px;
+}
+
+.spin-settings-card__mode-options {
+  display: flex;
+  gap: 10px;
+}
+
+.spin-settings-card__labels {
+  color: #fedbdb;
+}
+
+.spin-settings-card__role-list {
+  list-style: none;
+  display: flex;
+  padding-left: 0;
+  gap: 10px;
+}
+
+.spin-settings-card__button {
+  border: 1px solid #ccfbf1;
+  background: #b81414;
+  color: #062923;
+  font-weight: 800;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.spin-settings-card__break {
+  margin-top: 12px;
+  border-top: 1px solid rgba(224, 231, 255, 0.35);
+  padding-top: 12px;
+}
+
+.spin-settings-card__active {
+  margin-top: 6px;
+  color: #ffe0e0;
+}
+
 .hint {
   margin-top: 20px;
   color: #94a3b8;
