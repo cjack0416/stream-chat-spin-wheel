@@ -1,6 +1,10 @@
 {
     "heroList": [
         {
+            "name": "CAPTAIN AMERICA",
+            "role": "VANGUARD"
+        },
+        {
             "name": "DEADPOOL (TANKPOOL)",
             "role": "VANGUARD"
         },
