@@ -423,6 +423,7 @@ window.addEventListener("onWidgetLoad", (obj) => {
 
   if (typeof fieldData.spinSound === "string") {
     spinSound = new Audio(fieldData.spinSound);
+    spinSound.volume = fieldData.spinSoundVolume;
   }
 
   if (typeof fieldData.winnerApiUrl === "string" && fieldData.winnerApiUrl.trim()) {
