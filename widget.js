@@ -1,53 +1,3 @@
-const HEROES = [
-  "ADAM WARLOCK",
-  "ANGELA",
-  "BLACK PANTHER",
-  "BLACK WIDOW",
-  "BLADE",
-  "CAPTAIN AMERICA",
-  "CLOAK & DAGGER",
-  "DAREDEVIL",
-  "DEADPOOL",
-  "DOCTOR STRANGE",
-  "ELSA BLOODSTONE",
-  "EMMA FROST",
-  "GAMBIT",
-  "GROOT",
-  "HAWKEYE",
-  "HELA",
-  "HULK",
-  "HUMAN TORCH",
-  "INVISIBLE WOMAN",
-  "IRON FIST",
-  "IRON MAN",
-  "PHOENIX",
-  "JEFF THE LAND SHARK",
-  "LOKI",
-  "LUNA SNOW",
-  "MAGIK",
-  "MAGNETO",
-  "MANTIS",
-  "MISTER FANTASTIC",
-  "MOON KNIGHT",
-  "NAMOR",
-  "PENI PARKER",
-  "PSYLOCKE",
-  "ROCKET RACCOON",
-  "ROGUE",
-  "SCARLET WITCH",
-  "SPIDER-MAN",
-  "SQUIRREL GIRL",
-  "STAR-LORD",
-  "STORM",
-  "THE PUNISHER",
-  "THE THING",
-  "THOR",
-  "ULTRON",
-  "VENOM",
-  "WINTER SOLDIER",
-  "WOLVERINE"
-];
-
 const COLORS = [
   "#E11D48",
   "#2563EB",
@@ -79,6 +29,7 @@ let spinQueueStateApiUrl = "";
 let spinQueueCompleteApiUrl = "";
 let winnerApiToken = "";
 let chatReplyApiUrl = "";
+let spinListApiUrl = "";
 const minFullTurns = 8;
 const maxFullTurns = 12;
 
@@ -87,6 +38,7 @@ let isSpinning = false;
 let resultTimer = null;
 let queuePollTimer = null;
 let currentQueueRequestId = "";
+let spinList = [];
 
 function normalizeAngle(rad) {
   const r = rad % TAU;
@@ -94,54 +46,60 @@ function normalizeAngle(rad) {
 }
 
 function pickRandomIndex() {
-  return Math.floor(Math.random() * HEROES.length);
+  return Math.floor(Math.random() * spinList.length);
 }
 
 function getIndexAtPointer(currentRotation) {
-  const arc = TAU / HEROES.length;
+  const arc = TAU / spinList.length;
   const pointerInUnrotatedSpace = normalizeAngle(-Math.PI / 2 - currentRotation);
   const normalizedFromFirstSlice = normalizeAngle(pointerInUnrotatedSpace + Math.PI / 2);
-  return Math.floor(normalizedFromFirstSlice / arc) % HEROES.length;
+  return Math.floor(normalizedFromFirstSlice / arc) % spinList.length;
+}
+
+function validateSpinList() {
+  return spinList.length !== 0;
 }
 
 function drawWheel() {
-  const size = canvas.width;
-  const center = size / 2;
-  const radius = center - 8;
-  const arc = TAU / HEROES.length;
+  if (validateSpinList()) {
+    const size = canvas.width;
+    const center = size / 2;
+    const radius = center - 8;
+    const arc = TAU / spinList.length;
 
-  ctx.clearRect(0, 0, size, size);
-  ctx.save();
-  ctx.translate(center, center);
-  ctx.rotate(rotation);
-
-  for (let i = 0; i < HEROES.length; i += 1) {
-    const start = i * arc - Math.PI / 2;
-    const end = start + arc;
-    const hero = HEROES[i];
-
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.arc(0, 0, radius, start, end);
-    ctx.closePath();
-    ctx.fillStyle = COLORS[i % COLORS.length];
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
+    ctx.clearRect(0, 0, size, size);
     ctx.save();
-    ctx.rotate(start + arc / 2);
-    ctx.textAlign = "right";
-    ctx.fillStyle = "#fff";
-    ctx.font = "700 18px Trebuchet MS";
-    ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-    ctx.shadowBlur = 3;
-    ctx.fillText(hero, radius - 20, 6);
+    ctx.translate(center, center);
+    ctx.rotate(rotation);
+
+    for (let i = 0; i < spinList.length; i += 1) {
+      const start = i * arc - Math.PI / 2;
+      const end = start + arc;
+      const hero = spinList[i];
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, radius, start, end);
+      ctx.closePath();
+      ctx.fillStyle = COLORS[i % COLORS.length];
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.save();
+      ctx.rotate(start + arc / 2);
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#fff";
+      ctx.font = "700 18px Trebuchet MS";
+      ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+      ctx.shadowBlur = 3;
+      ctx.fillText(hero, radius - 20, 6);
+      ctx.restore();
+    }
+
     ctx.restore();
   }
-
-  ctx.restore();
 }
 
 function easeOutCubic(t) {
@@ -172,6 +130,29 @@ function showLatestUserAndHero(hero, userName) {
   lastSpinUser.textContent = userName;
   lastSpinHero.textContent = hero;
   lastSpin.classList.remove("hidden");
+}
+
+async function getSpinList() {
+  if (!spinListApiUrl) return;
+
+  const headers = { "Content-Type": "application/json" };
+  if (winnerApiToken) {
+    headers["x-api-token"] = winnerApiToken;
+  }
+
+  try {
+    const response = await fetch(spinListApiUrl, {
+      method: "GET",
+      headers
+    });
+  
+    if (!response.ok) return;
+
+    const json = await response.json();
+    return json.spinList;
+  } catch (_error) {
+    // Ignore network failures so widget behavior is not interrupted.
+  }
 }
 
 async function reportWinner(hero, userName) {
@@ -288,48 +269,57 @@ function stopSound(sound) {
 function spinForUser(userName, messageId) {
   if (isSpinning) return;
 
-  isSpinning = true;
-  wheelWrap.classList.remove("hidden");
-  clearWinner();
+  getSpinList()
+    .then(result => {
+      spinList = result;
+      if (validateSpinList()) {
+        isSpinning = true;
+        wheelWrap.classList.remove("hidden");
+        clearWinner();
 
-  const targetIndex = pickRandomIndex();
-  const arc = TAU / HEROES.length;
-  const wedgeCenter = targetIndex * arc + arc / 2;
-  const desiredRotationAtRest = -wedgeCenter;
-  const turns =
-    Math.floor(Math.random() * (maxFullTurns - minFullTurns + 1)) + minFullTurns;
-  const endRotation = turns * TAU + desiredRotationAtRest;
-  const startRotation = rotation;
-  const delta = endRotation - startRotation;
-  const start = performance.now();
+        const targetIndex = pickRandomIndex();
+        const arc = TAU / spinList.length;
+        const wedgeCenter = targetIndex * arc + arc / 2;
+        const desiredRotationAtRest = -wedgeCenter;
+        const turns =
+          Math.floor(Math.random() * (maxFullTurns - minFullTurns + 1)) + minFullTurns;
+        const endRotation = turns * TAU + desiredRotationAtRest;
+        const startRotation = rotation;
+        const delta = endRotation - startRotation;
+        const start = performance.now();
 
-  function animate(now) {
-    const elapsed = now - start;
-    const t = Math.min(elapsed / spinDurationMs, 1);
-    rotation = startRotation + delta * easeOutCubic(t);
-    drawWheel();
+        function animate(now) {
+          const elapsed = now - start;
+          const t = Math.min(elapsed / spinDurationMs, 1);
+          rotation = startRotation + delta * easeOutCubic(t);
+          drawWheel();
 
-    if (t < 1) {
-      requestAnimationFrame(animate);
-      return;
-    }
+          if (t < 1) {
+            requestAnimationFrame(animate);
+            return;
+          }
 
-    rotation = normalizeAngle(rotation);
-    drawWheel();
-    isSpinning = false;
-    stopSound(spinSound);
-    const landedIndex = getIndexAtPointer(rotation);
-    const hero = HEROES[landedIndex];
-    showWinner(hero, userName);
-    reportWinner(hero, userName);
-    sendChatReply(hero, userName, messageId);
-    completeQueueItem(currentQueueRequestId);
-    hideWidgetLater();
-    showLatestUserAndHero(hero, userName);
-  }
+          rotation = normalizeAngle(rotation);
+          drawWheel();
+          isSpinning = false;
+          stopSound(spinSound);
+          const landedIndex = getIndexAtPointer(rotation);
+          const hero = spinList[landedIndex];
+          showWinner(hero, userName);
+          reportWinner(hero, userName);
+          sendChatReply(hero, userName, messageId);
+          completeQueueItem(currentQueueRequestId);
+          hideWidgetLater();
+          showLatestUserAndHero(hero, userName);
+        }
 
-  playSound(spinSound);
-  requestAnimationFrame(animate);
+        playSound(spinSound);
+        requestAnimationFrame(animate);
+      }
+    })
+    .catch(_error => {
+      // Ignore errors here
+    });
 }
 
 function parseMessageEvent(detail) {
@@ -432,7 +422,6 @@ window.addEventListener("onWidgetLoad", (obj) => {
   }
 
   if (typeof fieldData.spinSound === "string") {
-    console.log("setting sound");
     spinSound = new Audio(fieldData.spinSound);
   }
 
@@ -482,8 +471,24 @@ window.addEventListener("onWidgetLoad", (obj) => {
     chatReplyApiUrl = fieldData.chatReplyApiUrl.trim();
   }
 
-  drawWheel();
-  startQueuePolling();
+  if (
+    typeof fieldData.spinListApiUrl === "string" &&
+    fieldData.spinListApiUrl.trim()
+  ) {
+    spinListApiUrl = fieldData.spinListApiUrl.trim();
+  }
+
+  getSpinList()
+    .then(result => {
+      spinList = result;
+      if (validateSpinList()) {
+        drawWheel();
+        startQueuePolling();
+      }
+    })
+    .catch(_error => {
+      // Ignore errors here
+    });
 });
 
 window.addEventListener("onEventReceived", (obj) => {

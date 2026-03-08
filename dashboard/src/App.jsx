@@ -20,7 +20,7 @@ export default function App() {
   const [mode, setMode] = useState("QP");
   const [heroRoles, setHeroRoles] = useState(roleOptions);
   const [activeMode, setActiveMode] = useState();
-  const [activeHeroRoles, setActiveHeroRoles] = useState();
+  const [activeHeroRoles, setActiveHeroRoles] = useState([]);
   const [streamSessionId, setStreamSessionId] = useState("-");
   const [streamSessionStartedAt, setStreamSessionStartedAt] = useState(null);
   const [resetStatus, setResetStatus] = useState("idle");
@@ -73,11 +73,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    console.log("In useEffect");
     let mounted = true;
     let queueInterval;
 
     async function loadInitialState() {
       try {
+        console.log("Setting initial state");
         const [winnerResponse, spinResponse, streamStateResponse, queueResponse, spinSettingsResponse] =
           await Promise.all([
           fetch(winnerApiUrl),
@@ -107,10 +109,12 @@ export default function App() {
             queue: Array.isArray(queueJson.queue) ? queueJson.queue : []
           });
           if (spinSettingsJson.mode) {
+            console.log("Setting active mode");
             setMode(spinSettingsJson.mode);
             setActiveMode(spinSettingsJson.mode);
           }
           if (spinSettingsJson.heroRoles) {
+            console.log("Setting active hero roles");
             setHeroRoles(spinSettingsJson.heroRoles);
             setActiveHeroRoles(spinSettingsJson.heroRoles);
           }

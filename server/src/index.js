@@ -130,6 +130,13 @@ app.get("/health", (_req, res) => {
 });
 
 app.get("/api/spin-list", (_req, res) => {
+  console.log("[spin-list] incoming request");
+  if (mode === QP) {
+    spinList = qpHeroList.filter(hero => heroRoles.includes(hero.role)).map((hero) => hero.name);
+  } else if (mode === RANKED) {
+    spinList = rankedHeroList.filter(hero => heroRoles.includes(hero.role)).map((hero) => hero.name);
+  }
+  console.log(JSON.stringify(spinList));
   return res.status(200).json({ spinList });
 });
 
@@ -145,11 +152,6 @@ app.post("/api/spin-settings", (req, res) => {
   }
   mode = reqMode;
   heroRoles = reqRoles;
-  if (mode === QP) {
-    spinList = qpHeroList.filter(hero => heroRoles.includes(hero.role));
-  } else if (mode === RANKED) {
-    spinList = rankedHeroList.filter(hero => heroRoles.includes(hero.role));
-  }
   return res.status(200).json({ mode, heroRoles });
 });
 
